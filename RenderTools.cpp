@@ -57,7 +57,7 @@ Ray Ray::MakeBlackRay() {
 //================================ Material ====================================
 //==============================================================================
 Material::Material(std::map<std::string, double> rgb_Kd_color, std::map<std::string, double> bright_coefficient) :
-    rgb_Kd_color(std::move(rgb_Kd_color)), bright_coefficient(std::move(bright_coefficient)) {
+        rgb_Kd_color(std::move(rgb_Kd_color)), bright_coefficient(std::move(bright_coefficient)) {
 }
 
 //==============================================================================
@@ -71,6 +71,11 @@ Triangle::Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1,
                    const cv::Vec3d &v2,
                    const int &object_id) : v0(v0), v1(v1), v2(v2),
                                            object_id(object_id) {
+}
+
+Triangle::Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
+                   const Material *material): v0(v0), v1(v1), v2(v2),  material(material){
+
 }
 
 Triangle::Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1,
@@ -177,6 +182,39 @@ void Scene::setNewCamera(const Camera &camera) {
     cameras.emplace_back(camera);
 }
 
+void Scene::setNewMaterial(Material material) {
+    materials.emplace_back(material);
+}
+
+void Scene::setNewLight(const Light &light) {
+    lights.emplace_back(light);
+}
+
+void Scene::setNewTriangle(const cv::Vec3d& v0,const cv::Vec3d& v1,const cv::Vec3d& v2, const int & id){
+    triangles.emplace_back(Triangle(v0, v1, v2, &materials[id]));
+}
+
+void Scene::addPlane(const cv::Vec3d& v0,const cv::Vec3d& v1,const cv::Vec3d& v2,
+                          const cv::Vec3d& v3, const int & id){
+    triangles.emplace_back(Triangle(v0, v1, v2, &materials[id]));
+    triangles.emplace_back(Triangle(v2, v3, v0, &materials[id]));
+}
+
+void Scene::addCub(const cv::Vec3d& v0,const cv::Vec3d& v1,const cv::Vec3d& v2,
+                 const cv::Vec3d& v3, const int & id, const double& depth){
+    cv::Vec3d normal = get_normalized((v0-v1).cross(v2-v1));
+    cv::Vec3d v00 = v0 + normal * depth;
+    cv::Vec3d v10 = v1 + normal * depth;
+    cv::Vec3d v20 = v2 + normal * depth;
+    cv::Vec3d v30 = v3 + normal * depth;
+    addPlane(v0,v1,v2,v3,id);
+    addPlane(v0,v1,v10,v00,id);
+    addPlane(v1,v2,v20,v10,id);
+    addPlane(v2,v3,v30,v20,id);
+    addPlane(v3,v0,v00,v30,id);
+    addPlane(v00,v10,v20,v30,id);
+}
+
 // FIXME: Change signature (material)
 bool Scene::intersect(const Ray &ray, cv::Vec3d &distanseOverHit, cv::Vec3d &N, Material &material) {
 
@@ -216,7 +254,7 @@ Ray Scene::fireRay(Ray &ray) {
         double cos_teta = light_dir.dot(N);
         if (cos_teta <= 0) {
             for (auto &item : ray.L) {
-                double E = 0.008*((lights[i].spec_intensity.find(item.first)->second) /
+                double E = 0.01*((lights[i].spec_intensity.find(item.first)->second) /
                                   (dist * dist)) * cos_teta;
                 item.second =
                         (E * material.bright_coefficient.find(item.first)->second) / (double) M_PI;
@@ -234,7 +272,7 @@ Ray Scene::fireRay(Ray &ray) {
 
             for (auto &item : ray.L) {
                 double E = 0.015*((lights[i].spec_intensity.find(item.first)->second) /
-                            (dist * dist)) * cos_teta;
+                                  (dist * dist)) * cos_teta;
                 item.second =
                         (E * material.bright_coefficient.find(item.first)->second) / (double) M_PI;
             }
@@ -308,7 +346,7 @@ int Scene::loadCornellBox(const std::string &path_to_file) {
     spec_intensity.insert(
             std::make_pair("b", total_intensity * (Isim_b / Itotal)));
 
-    Light a = Light(cv::Vec3d(278, 545, -279.5), 1445872,
+    Light a = Light(cv::Vec3d(278, 545, -279.5), total_intensity,
                     spec_intensity);
     lights.push_back(a);
 
@@ -382,7 +420,7 @@ int Scene::loadCornellBox(const std::string &path_to_file) {
 
 
 void Scene::render() {
-
+    std:: cout << triangles.size() << std::endl;
     for (auto &camera : cameras) {
         int width = camera.getWidth();
         int height = camera.getHeight();
@@ -393,13 +431,12 @@ void Scene::render() {
         for (long long i = 0; i < height; i++) {
             for (long long j = 0; j < width; j++) {
                 double x = -(2 * (j + 0.5) / (double) width - 1) * tan(fov / 2.) * width /
-                        (double) height;
+                           (double) height;
                 double y = -(2 * (i + 0.5) / (double) height - 1) * tan(fov / 2.);
                 cv::Vec3d direction = get_normalized(cv::Vec3d(x, y, -1));
-
                 Ray ray(camera.getPosition(), direction);
-
                 framebuffer[j + i * width] = fireRay(ray);
+
             }
         }
 

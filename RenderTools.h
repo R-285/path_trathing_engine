@@ -55,7 +55,6 @@ public:
 
 public:
     std::map<std::string, double> rgb_Kd_color; // int wavelength, Kd color
-
     std::map<std::string, double> bright_coefficient; //spec
 };
 
@@ -70,6 +69,8 @@ public:
     Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2);
     Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
              const int &object_id);
+    Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
+             const Material *material);
     Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
              const int &object_id,
              const Material *material);
@@ -130,7 +131,18 @@ public:
     void render();
     Ray fireRay(Ray &ray);
     int loadCornellBox(const std::string &path_to_file);
+
+    void addPlane(const cv::Vec3d& v0,const cv::Vec3d& v1,const cv::Vec3d& v2,
+                  const cv::Vec3d& v4, const int & id);
+    void addCub(const cv::Vec3d& v0,const cv::Vec3d& v1,const cv::Vec3d& v2,
+                  const cv::Vec3d& v4, const int & id, const double& depth);
+    void setNewTriangle(const cv::Vec3d& v0,const cv::Vec3d& v1,const cv::Vec3d& v2,
+                        const int & id);
+
     void setNewCamera(const Camera &camera);
+    void setNewMaterial(Material material);
+    void setNewLight(const Light & light);
+
 
 private:
     bool
