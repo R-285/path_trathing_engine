@@ -42,8 +42,9 @@ Ray::Ray(const cv::Vec3d &new_origin, const cv::Vec3d &new_direction,
         L(std::move(L)) {
 }
 
-Ray::Ray(std::map<std::string, double> L) :L(std::move(L)) {
+Ray::Ray(std::map<std::string, double> L) : L(std::move(L)) {
 }
+
 Ray Ray::MakeBlackRay() {
     std::map<std::string, double> L;
 
@@ -53,6 +54,7 @@ Ray Ray::MakeBlackRay() {
     return Ray(L);
 
 }
+
 //==============================================================================
 //================================ Material ====================================
 //==============================================================================
@@ -74,7 +76,7 @@ Triangle::Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1,
 }
 
 Triangle::Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
-                   const Material *material): v0(v0), v1(v1), v2(v2),  material(material){
+                   const Material *material) : v0(v0), v1(v1), v2(v2), material(material) {
 
 }
 
@@ -163,7 +165,7 @@ double Camera::getFov() const {
     return fov;
 }
 
-cv::Vec3d Camera::getPosition() const{
+cv::Vec3d Camera::getPosition() const {
     return origin;
 }
 
@@ -190,29 +192,29 @@ void Scene::setNewLight(const Light &light) {
     lights.emplace_back(light);
 }
 
-void Scene::setNewTriangle(const cv::Vec3d& v0,const cv::Vec3d& v1,const cv::Vec3d& v2, const int & id){
+void Scene::setNewTriangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2, const int &id) {
     triangles.emplace_back(Triangle(v0, v1, v2, &materials[id]));
 }
 
-void Scene::addPlane(const cv::Vec3d& v0,const cv::Vec3d& v1,const cv::Vec3d& v2,
-                          const cv::Vec3d& v3, const int & id){
+void Scene::addPlane(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
+                     const cv::Vec3d &v3, const int &id) {
     triangles.emplace_back(Triangle(v0, v1, v2, &materials[id]));
     triangles.emplace_back(Triangle(v2, v3, v0, &materials[id]));
 }
 
-void Scene::addCub(const cv::Vec3d& v0,const cv::Vec3d& v1,const cv::Vec3d& v2,
-                 const cv::Vec3d& v3, const int & id, const double& depth){
-    cv::Vec3d normal = get_normalized((v0-v1).cross(v2-v1));
+void Scene::addCub(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
+                   const cv::Vec3d &v3, const int &id, const double &depth) {
+    cv::Vec3d normal = get_normalized((v0 - v1).cross(v2 - v1));
     cv::Vec3d v00 = v0 + normal * depth;
     cv::Vec3d v10 = v1 + normal * depth;
     cv::Vec3d v20 = v2 + normal * depth;
     cv::Vec3d v30 = v3 + normal * depth;
-    addPlane(v0,v1,v2,v3,id);
-    addPlane(v0,v1,v10,v00,id);
-    addPlane(v1,v2,v20,v10,id);
-    addPlane(v2,v3,v30,v20,id);
-    addPlane(v3,v0,v00,v30,id);
-    addPlane(v00,v10,v20,v30,id);
+    addPlane(v0, v1, v2, v3, id);
+    addPlane(v0, v1, v10, v00, id);
+    addPlane(v1, v2, v20, v10, id);
+    addPlane(v2, v3, v30, v20, id);
+    addPlane(v3, v0, v00, v30, id);
+    addPlane(v00, v10, v20, v30, id);
 }
 
 // FIXME: Change signature (material)
@@ -236,33 +238,53 @@ bool Scene::intersect(const Ray &ray, cv::Vec3d &distanseOverHit, cv::Vec3d &N, 
 
 // FIXME: Change signature
 Ray Scene::fireRay(Ray &ray) {
-    cv::Vec3d hit, N;
+    cv::Vec3d hitRayIntersection, N;
     Material material;
 
 
-    if (!intersect(ray, hit, N, material)) {
+    if (!intersect(ray, hitRayIntersection, N, material)) {
         return ray.MakeBlackRay();  //ray intersect no one triangle
     }
 
-    for (auto &item : material.rgb_Kd_color) {
-        material.bright_coefficient.find(item.first)->second *= item.second;
-    }
-
     for (int i = 0; i < lights.size(); i++) {
-        cv::Vec3d light_dir = get_normalized(lights[i].position - hit);
-        double dist = get_length(lights[i].position - hit);
-        double cos_teta = light_dir.dot(N);
-        if (cos_teta <= 0) {
+
+        cv::Vec3d light_dir = get_normalized(lights[i].position - hitRayIntersection);
+        double dist = get_length(lights[i].position - hitRayIntersection);
+        double cos_theta = light_dir.dot(N);
+
+        if (material.BRDF != 0) {   //reflection
+            double summOfL = 0;
             for (auto &item : ray.L) {
-                double E = 0.01*((lights[i].spec_intensity.find(item.first)->second) /
-                                  (dist * dist)) * cos_teta;
-                item.second =
-                        (E * material.bright_coefficient.find(item.first)->second) / (double) M_PI;
+                summOfL += item.second;
             }
-            return ray; //ray intersect no one triangle
+            if (summOfL > 0.0005) {
+                for (auto &item : ray.L) {
+                    item.second *= material.BRDF * material.rgb_Kd_color.find(item.first)->second;
+                }
+                Ray reflactionRay = Ray(hitRayIntersection, ray.direction + 2 * N, ray.L);
+                reflactionRay = fireRay(reflactionRay);
+                for (auto &item : reflactionRay.L) {
+                    double E = ((lights[i].spec_intensity.find(item.first)->second) /
+                                        (dist * dist)) * cos_theta;
+                    item.second +=
+                            E * material.rgb_Kd_color.find(item.first)->second * (1-material.BRDF) * 0.05;
+                }
+                return reflactionRay;
+            }
+            return ray.MakeBlackRay();
         }
 
-        cv::Vec3d shadow_origin = hit + N * 1e-3;
+        if (cos_theta <= 0) {   //triangle unlit
+            for (auto &item : ray.L) {
+                double E = -0.01 * ((lights[i].spec_intensity.find(item.first)->second) /
+                                    (dist * dist)) * cos_theta;
+                item.second =
+                        E * material.rgb_Kd_color.find(item.first)->second * item.second;
+            }
+            return ray;
+        }
+
+        cv::Vec3d shadow_origin = hitRayIntersection + N * 1e-3;
         Ray shadow_ray = Ray(shadow_origin, light_dir);
         cv::Vec3d shadow_hit, shadow_N;
         Material shadow_material;
@@ -271,10 +293,10 @@ Ray Scene::fireRay(Ray &ray) {
             get_length(shadow_hit - shadow_origin) < dist) {
 
             for (auto &item : ray.L) {
-                double E = 0.015*((lights[i].spec_intensity.find(item.first)->second) /
-                                  (dist * dist)) * cos_teta;
+                double E = 0.015 * ((lights[i].spec_intensity.find(item.first)->second) /
+                                    (dist * dist)) * cos_theta;
                 item.second =
-                        (E * material.bright_coefficient.find(item.first)->second) / (double) M_PI;
+                        (E * material.rgb_Kd_color.find(item.first)->second) * item.second;
             }
 
             continue;
@@ -282,16 +304,14 @@ Ray Scene::fireRay(Ray &ray) {
 
         for (auto &item : ray.L) {
             double E = ((lights[i].spec_intensity.find(item.first)->second) /
-                        (dist * dist)) * cos_teta;
+                        (dist * dist)) * cos_theta;
             item.second =
-                    (E * material.bright_coefficient.find(item.first)->second) / (double) M_PI;
+                    (E * material.rgb_Kd_color.find(item.first)->second) * item.second;
         }
     }
 
     return ray;
 }
-
-
 
 int Scene::loadCornellBox(const std::string &path_to_file) {
     // Materials
@@ -413,14 +433,12 @@ int Scene::loadCornellBox(const std::string &path_to_file) {
 
     file.close();
 
-    std::cout << triangles.size() << std::endl;
-
     return exit_code;
 }
 
 
 void Scene::render() {
-    std:: cout << triangles.size() << std::endl;
+    std::cout << triangles.size() << std::endl;
     for (auto &camera : cameras) {
         int width = camera.getWidth();
         int height = camera.getHeight();

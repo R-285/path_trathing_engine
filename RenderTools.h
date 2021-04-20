@@ -53,6 +53,7 @@ public:
     Material() = default;
     Material(std::map<std::string, double> rgb_Kd_color,  std::map<std::string, double> bright_coefficient);
 
+    double BRDF = 0;
 public:
     std::map<std::string, double> rgb_Kd_color; // int wavelength, Kd color
     std::map<std::string, double> bright_coefficient; //spec
