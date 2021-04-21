@@ -265,9 +265,9 @@ Ray Scene::fireRay(Ray &ray) {
                 reflactionRay = fireRay(reflactionRay);
                 for (auto &item : reflactionRay.L) {
                     double E = ((lights[i].spec_intensity.find(item.first)->second) /
-                                        (dist * dist)) * cos_theta;
+                                (dist * dist)) * cos_theta;
                     item.second +=
-                            E * material.rgb_Kd_color.find(item.first)->second * (1-material.BRDF) * 0.05;
+                            E * material.rgb_Kd_color.find(item.first)->second * (1 - material.BRDF) * 0.05;
                 }
                 return reflactionRay;
             }
@@ -437,7 +437,7 @@ int Scene::loadCornellBox(const std::string &path_to_file) {
 }
 
 
-void Scene::render() {
+void Scene::render(const bool &antialiasing) {
     std::cout << triangles.size() << std::endl;
     for (auto &camera : cameras) {
         int width = camera.getWidth();
@@ -445,18 +445,38 @@ void Scene::render() {
         double fov = camera.getFov();
 
         std::vector<Ray> framebuffer(width * height);
-
         for (long long i = 0; i < height; i++) {
             for (long long j = 0; j < width; j++) {
                 double x = -(2 * (j + 0.5) / (double) width - 1) * tan(fov / 2.) * width /
                            (double) height;
                 double y = -(2 * (i + 0.5) / (double) height - 1) * tan(fov / 2.);
                 cv::Vec3d direction = get_normalized(cv::Vec3d(x, y, -1));
-                Ray ray(camera.getPosition(), direction);
-                framebuffer[j + i * width] = fireRay(ray);
+                if (antialiasing){
+                    Ray ray0(camera.getPosition()+cv::Vec3d(-0.5,0.5,0), direction);
+                    Ray ray1(camera.getPosition()+cv::Vec3d(0.5,0.5,0), direction);
+                    Ray ray2(camera.getPosition()+cv::Vec3d(0.5,-0.5,0), direction);
+                    Ray ray3(camera.getPosition()+cv::Vec3d(-0.5,-0.5,0), direction);
+
+                    ray0 = fireRay(ray0);
+                    ray1 = fireRay(ray1);
+                    ray2 = fireRay(ray2);
+                    ray3 = fireRay(ray3);
+                    Ray result = ray0.MakeBlackRay();
+                    for (auto &item : result.L) {
+                        item.second = ((ray0.L.find(item.first)->second) + (ray1.L.find(item.first)->second) +
+                                (ray2.L.find(item.first)->second) + (ray3.L.find(item.first)->second)) / 4;
+                    }
+                    framebuffer[j + i * width] = result;
+                }else {
+
+                    Ray ray(camera.getPosition(), direction);
+                    framebuffer[j + i * width] = fireRay(ray);
+                }
 
             }
         }
+
+
 
         // FIXME: Change save path
         std::ofstream fout("../data/results.txt");

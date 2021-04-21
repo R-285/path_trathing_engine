@@ -129,7 +129,7 @@ private:
 class Scene {
 public:
     Scene();
-    void render();
+    void render(const bool & antialiasing);
     Ray fireRay(Ray &ray);
     int loadCornellBox(const std::string &path_to_file);
 
