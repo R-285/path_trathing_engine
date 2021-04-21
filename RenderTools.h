@@ -132,6 +132,7 @@ public:
     void render(const bool & antialiasing);
     Ray fireRay(Ray &ray);
     int loadCornellBox(const std::string &path_to_file);
+    int loadTeapot(const std::string &path_to_file);
 
     void addPlane(const cv::Vec3d& v0,const cv::Vec3d& v1,const cv::Vec3d& v2,
                   const cv::Vec3d& v4, const int & id);

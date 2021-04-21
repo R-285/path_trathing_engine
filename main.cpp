@@ -7,7 +7,7 @@ int main() {
     std::string path_to_scene_description = "../data/cornel_box0.shp";
     Scene scene;
 
-    if (1) {
+    if (0) {
         if (int exit_code = scene.loadCornellBox(path_to_scene_description); exit_code != 0) {
             std::cout << "Scene: failed to load scene description: " << exit_code << std::endl;
         }
@@ -59,8 +59,8 @@ int main() {
         materialOfMirrorBox.BRDF = 0.3;
         scene.setNewMaterial(materialOfMirrorBox);
 
-        cv::Vec3d v0G{-500, 0, 0};
-        cv::Vec3d v1G{1000, 0, 0};
+        cv::Vec3d v0G{-500, 0, 50};
+        cv::Vec3d v1G{1000, 0, 50};
         cv::Vec3d v2G{1000, 0, -2000};
         cv::Vec3d v3G{-500, 0, -2000};
         scene.addPlane(v0G, v1G, v2G, v3G, 0);
@@ -93,7 +93,13 @@ int main() {
         v1G = {150, 0,  -50};
         v2G = {150, 200,-50};
         v3G = {0,  200,-75};
-        scene.addCub(v0G, v1G, v2G, v3G, 5,150);
+        scene.addCub(v0G, v1G, v2G, v3G, 5, 150);
+
+        std::string path_to_teapot = "../data/teapot.txt";
+
+        /*if (int exit_code = scene.loadTeapot(path_to_teapot); exit_code != 0) {
+            std::cout << "Scene: failed to load teapot: " << exit_code << std::endl;
+        }*/
 
         // Lights
         int total_intensity = 1.816936e+07; // W/sr
@@ -115,8 +121,8 @@ int main() {
         scene.setNewLight(a);
     }
     // New camera
-    int width = 512;//1024;
-    int height =512;//768;
+    int width =  1280;
+    int height = 720;
     double fov = M_PI / 3.f;
     cv::Vec3d origin({250, 275, 500});
     Camera camera(width, height, fov, origin);

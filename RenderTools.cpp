@@ -193,6 +193,7 @@ void Scene::setNewLight(const Light &light) {
 }
 
 void Scene::setNewTriangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2, const int &id) {
+
     triangles.emplace_back(Triangle(v0, v1, v2, &materials[id]));
 }
 
@@ -436,6 +437,46 @@ int Scene::loadCornellBox(const std::string &path_to_file) {
     return exit_code;
 }
 
+int Scene::loadTeapot(const std::string &path_to_file) {
+
+    // Triangles
+    int exit_code = 0;
+
+    std::string s;
+    std::ifstream file(path_to_file);
+
+    std::vector<cv::Vec3d> allPoint;
+    int counter = 0;
+    cv::Vec3d translation = {400,0,-300};
+    while (getline(file, s)) {
+
+        std::istringstream iss(s);
+        std::string vOrF;
+        iss >> vOrF;
+        if (vOrF == "v"){
+            std::vector<double> cords;
+            for (std::string s; iss >> s;)
+                cords.push_back(stod(s) * 85);
+            cv::Vec3d new_point = cv::Vec3d(cords[0], cords[1],
+                                            cords[2]); // Было cv::Vec3d(cords[0], cords[1], cords[2])
+            allPoint.push_back(new_point + translation);
+        }
+
+        if (vOrF == "f") {
+            std::vector<int> number_of_triangles;
+            for (std::string s; iss >> s;)
+                number_of_triangles.push_back(stoi(s));
+            cv::Vec3d v0 = allPoint[number_of_triangles[0]-1];
+            cv::Vec3d v1 = allPoint[number_of_triangles[1]-1];
+            cv::Vec3d v2 = allPoint[number_of_triangles[2]-1];
+            this->setNewTriangle(v0, v1, v2, 3);
+        }
+    }
+    file.close();
+
+    return exit_code;
+}
+
 
 void Scene::render(const bool &antialiasing) {
     std::cout << triangles.size() << std::endl;
@@ -443,7 +484,6 @@ void Scene::render(const bool &antialiasing) {
         int width = camera.getWidth();
         int height = camera.getHeight();
         double fov = camera.getFov();
-
         std::vector<Ray> framebuffer(width * height);
         if (antialiasing) {
             width = width*2+1;
@@ -469,7 +509,6 @@ void Scene::render(const bool &antialiasing) {
                 for (long long j = 0; j < width; j++) {
                     int position_X = i * 2+1;
                     int position_Y = j * 2+1;
-                    //std::cout << position_X << " " << position_Y << std::endl;
                     Ray result = antialiasingFrameBuffer[0].MakeBlackRay();
                     for (auto &item : result.L) {
                         item.second = ( antialiasingFrameBuffer[position_Y-1+(position_X-1) * (width*2+1)].L.find(item.first)->second +
@@ -490,6 +529,7 @@ void Scene::render(const bool &antialiasing) {
         } else {
             for (long long i = 0; i < height; i++) {
                 for (long long j = 0; j < width; j++) {
+
                     double x = -(2 * (j + 0.5) / (double) width - 1) * tan(fov / 2.) * width /
                                (double) height;
                     double y = -(2 * (i + 0.5) / (double) height - 1) * tan(fov / 2.);
