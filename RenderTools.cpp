@@ -445,34 +445,59 @@ void Scene::render(const bool &antialiasing) {
         double fov = camera.getFov();
 
         std::vector<Ray> framebuffer(width * height);
-        for (long long i = 0; i < height; i++) {
-            for (long long j = 0; j < width; j++) {
-                double x = -(2 * (j + 0.5) / (double) width - 1) * tan(fov / 2.) * width /
-                           (double) height;
-                double y = -(2 * (i + 0.5) / (double) height - 1) * tan(fov / 2.);
-                cv::Vec3d direction = get_normalized(cv::Vec3d(x, y, -1));
-                if (antialiasing){
-                    Ray ray0(camera.getPosition()+cv::Vec3d(-0.5,0.5,0), direction);
-                    Ray ray1(camera.getPosition()+cv::Vec3d(0.5,0.5,0), direction);
-                    Ray ray2(camera.getPosition()+cv::Vec3d(0.5,-0.5,0), direction);
-                    Ray ray3(camera.getPosition()+cv::Vec3d(-0.5,-0.5,0), direction);
+        if (antialiasing) {
+            width = width*2+1;
+            height = height*2+1;
+            std::vector<Ray> antialiasingFrameBuffer(width * height);
 
-                    ray0 = fireRay(ray0);
-                    ray1 = fireRay(ray1);
-                    ray2 = fireRay(ray2);
-                    ray3 = fireRay(ray3);
-                    Ray result = ray0.MakeBlackRay();
+            for (long long i = 0; i < height; i++) {
+                for (long long j = 0; j < width; j++) {
+                    double x = -(2 * (j + 0.5) / (double) width - 1) * tan(fov / 2.) * width /
+                               (double) height;
+                    double y = -(2 * (i + 0.5) / (double) height - 1) * tan(fov / 2.);
+                    cv::Vec3d direction = get_normalized(cv::Vec3d(x, y, -1));
+
+                    Ray ray(camera.getPosition(), direction);
+                    antialiasingFrameBuffer[j + i * width] = fireRay(ray);
+                }
+            }
+
+            width = (width-1)/2;
+            height = (height-1)/2;
+
+            for (long long i = 0; i < height; i++) {
+                for (long long j = 0; j < width; j++) {
+                    int position_X = i * 2+1;
+                    int position_Y = j * 2+1;
+                    //std::cout << position_X << " " << position_Y << std::endl;
+                    Ray result = antialiasingFrameBuffer[0].MakeBlackRay();
                     for (auto &item : result.L) {
-                        item.second = ((ray0.L.find(item.first)->second) + (ray1.L.find(item.first)->second) +
-                                (ray2.L.find(item.first)->second) + (ray3.L.find(item.first)->second)) / 4;
+                        item.second = ( antialiasingFrameBuffer[position_Y-1+(position_X-1) * (width*2+1)].L.find(item.first)->second +
+                                        antialiasingFrameBuffer[position_Y  +(position_X-1) * (width*2+1)].L.find(item.first)->second +
+                                        antialiasingFrameBuffer[position_Y+1+(position_X-1) * (width*2+1)].L.find(item.first)->second +
+                                        antialiasingFrameBuffer[position_Y-1+(position_X  ) * (width*2+1)].L.find(item.first)->second +
+                                        antialiasingFrameBuffer[position_Y  +(position_X  ) * (width*2+1)].L.find(item.first)->second +
+                                        antialiasingFrameBuffer[position_Y+1+(position_X  ) * (width*2+1)].L.find(item.first)->second +
+                                        antialiasingFrameBuffer[position_Y-1+(position_X+1) * (width*2+1)].L.find(item.first)->second +
+                                        antialiasingFrameBuffer[position_Y  +(position_X+1) * (width*2+1)].L.find(item.first)->second +
+                                        antialiasingFrameBuffer[position_Y+1+(position_X+1) * (width*2+1)].L.find(item.first)->second) / 9;
                     }
                     framebuffer[j + i * width] = result;
-                }else {
+                }
+            }
+
+
+        } else {
+            for (long long i = 0; i < height; i++) {
+                for (long long j = 0; j < width; j++) {
+                    double x = -(2 * (j + 0.5) / (double) width - 1) * tan(fov / 2.) * width /
+                               (double) height;
+                    double y = -(2 * (i + 0.5) / (double) height - 1) * tan(fov / 2.);
+                    cv::Vec3d direction = get_normalized(cv::Vec3d(x, y, -1));
 
                     Ray ray(camera.getPosition(), direction);
                     framebuffer[j + i * width] = fireRay(ray);
                 }
-
             }
         }
 

@@ -115,8 +115,8 @@ int main() {
         scene.setNewLight(a);
     }
     // New camera
-    int width = 1024;
-    int height =768;
+    int width = 512;//1024;
+    int height =512;//768;
     double fov = M_PI / 3.f;
     cv::Vec3d origin({250, 275, 500});
     Camera camera(width, height, fov, origin);
