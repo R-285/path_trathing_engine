@@ -3,58 +3,37 @@
 #include <iostream>
 
 int main() {
+
     // New scene
     std::string path_to_scene_description = "../data/cornel_box0.shp";
     Scene scene;
 
-    if (0) {
+    if (false) {
         if (int exit_code = scene.loadCornellBox(path_to_scene_description); exit_code != 0) {
             std::cout << "Scene: failed to load scene description: " << exit_code << std::endl;
         }
     } else {
 
-        std::map<std::string, double> bright_coefs;
+        cv::Vec3d bright_coefs {1,1,1};
 
-        bright_coefs.insert(std::make_pair("r", 1));
-        bright_coefs.insert(std::make_pair("g", 1));
-        bright_coefs.insert(std::make_pair("b", 1));
-
-        std::map<std::string, double> rgbGrass;
-        rgbGrass.insert(std::make_pair("r", 0.1));
-        rgbGrass.insert(std::make_pair("g", 0.4));
-        rgbGrass.insert(std::make_pair("b", 0.1));
+        cv::Vec3d rgbGrass{0.1,0.4,0.1};
         scene.setNewMaterial({rgbGrass, bright_coefs});
 
-        std::map<std::string, double> rgbSky;
-        rgbSky.insert(std::make_pair("r", 0.05));
-        rgbSky.insert(std::make_pair("g", 0.9));
-        rgbSky.insert(std::make_pair("b", 0.99));
+        cv::Vec3d rgbSky {0.05,0.9,0.99};
         scene.setNewMaterial({rgbSky, bright_coefs});
 
-        std::map<std::string, double> redBox;
-        redBox.insert(std::make_pair("r", 0.8));
-        redBox.insert(std::make_pair("g", 0.2));
-        redBox.insert(std::make_pair("b", 0.3));
+        cv::Vec3d redBox{0.8,0.2,0.3};
         scene.setNewMaterial({redBox, bright_coefs});
 
-        std::map<std::string, double> whiteBox;
-        whiteBox.insert(std::make_pair("r", 0.3));
-        whiteBox.insert(std::make_pair("g", 0.3));
-        whiteBox.insert(std::make_pair("b", 0.3));
+        cv::Vec3d whiteBox{0.3,0.3,0.3};
         scene.setNewMaterial({whiteBox, bright_coefs});
 
-        std::map<std::string, double> mirror;
-        mirror.insert(std::make_pair("r", 1.0));
-        mirror.insert(std::make_pair("g", 1.0));
-        mirror.insert(std::make_pair("b", 1.0));
+        cv::Vec3d mirror{1,1,1};
         Material materialOfMirror = Material{mirror, bright_coefs};
         materialOfMirror.BRDF = 0.7;
         scene.setNewMaterial(materialOfMirror);
 
-        std::map<std::string, double> mirrorBox;
-        mirrorBox.insert(std::make_pair("r", 0.90588));
-        mirrorBox.insert(std::make_pair("g", 0.8196));
-        mirrorBox.insert(std::make_pair("b", 0.078));
+        cv::Vec3d mirrorBox{0.90588, 0.8196, 0.078};
         Material materialOfMirrorBox = Material{mirrorBox, bright_coefs};
         materialOfMirrorBox.BRDF = 0.3;
         scene.setNewMaterial(materialOfMirrorBox);
@@ -95,9 +74,9 @@ int main() {
         v3G = {0,  200,-75};
         scene.addCub(v0G, v1G, v2G, v3G, 5, 150);
 
-        std::string path_to_teapot = "../data/teapot.txt";
+        /*std::string path_to_teapot = "../data/teapot.txt";
 
-        /*if (int exit_code = scene.loadTeapot(path_to_teapot); exit_code != 0) {
+        if (int exit_code = scene.loadTeapot(path_to_teapot); exit_code != 0) {
             std::cout << "Scene: failed to load teapot: " << exit_code << std::endl;
         }*/
 
@@ -108,27 +87,23 @@ int main() {
         double Isim_b = 600;
         double Itotal = Isim_r + Isim_g + Isim_b;
 
-        std::map<std::string, double> spec_intensity;
-        spec_intensity.insert(
-                std::make_pair("r", total_intensity * (Isim_r / Itotal)));
-        spec_intensity.insert(
-                std::make_pair("g", total_intensity * (Isim_g / Itotal)));
-        spec_intensity.insert(
-                std::make_pair("b", total_intensity * (Isim_b / Itotal)));
+        cv::Vec3d spec_intensity{total_intensity * (Isim_r / Itotal),
+                                 total_intensity * (Isim_g / Itotal),
+                                 total_intensity * (Isim_b / Itotal)};
 
         Light a = Light(cv::Vec3d(600, 600, -500), total_intensity,
                         spec_intensity);
         scene.setNewLight(a);
     }
     // New camera
-    int width =  1280;
-    int height = 720;
+    int width  = 1280;  //512;  //
+    int height = 720;   //512;  //
     double fov = M_PI / 3.f;
     cv::Vec3d origin({250, 275, 500});
     Camera camera(width, height, fov, origin);
     scene.setNewCamera(camera);
 
-    bool antialiasing = 1;
+    bool antialiasing = 0;
     scene.render(antialiasing);
     return 0;
 }

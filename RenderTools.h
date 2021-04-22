@@ -34,14 +34,14 @@ struct Point {
 class Ray {
 public:
     Ray() = default;
-    Ray(std::map<std::string, double> L);
+    Ray(cv::Vec3d color);
     Ray(const cv::Vec3d &origin, const cv::Vec3d &direction);
-    Ray(const cv::Vec3d &new_origin, const cv::Vec3d &new_direction, std::map<std::string, double> L);
+    Ray(const cv::Vec3d &new_origin, const cv::Vec3d &new_direction, cv::Vec3d color);
     Ray MakeBlackRay();
 public:
     cv::Vec3d origin;
     cv::Vec3d direction;
-    std::map<std::string, double> L;
+    cv::Vec3d L;
 };
 
 //==============================================================================
@@ -51,12 +51,12 @@ public:
 class Material {
 public:
     Material() = default;
-    Material(std::map<std::string, double> rgb_Kd_color,  std::map<std::string, double> bright_coefficient);
+    Material(cv::Vec3d rgb_Kd_color,  cv::Vec3d bright_coefficient);
 
     double BRDF = 0;
 public:
-    std::map<std::string, double> rgb_Kd_color; // int wavelength, Kd color
-    std::map<std::string, double> bright_coefficient; //spec
+    cv::Vec3d rgb_Kd_color;
+    cv::Vec3d bright_coefficient;
 };
 
 //==============================================================================
@@ -93,12 +93,12 @@ public:
     Light() = default;
     Light(const cv::Vec3d &new_position, double new_total_flux);
     Light(const cv::Vec3d &new_position, double new_total_flux,
-          std::map<std::string, double> new_spec_intensity);
+          cv::Vec3d new_rgb_intensity);
 
 public:
     cv::Vec3d position;
     double total_intensity = 0; // W/sr
-    std::map<std::string, double> spec_intensity; // int wavelength, double intensity
+    cv::Vec3d rgb_intensity; // int wavelength, double intensity
 };
 
 //==============================================================================

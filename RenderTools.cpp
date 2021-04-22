@@ -27,38 +27,28 @@ cv::Vec3d get_normalized(const cv::Vec3d &vec) {
 Ray::Ray(const cv::Vec3d &origin, const cv::Vec3d &direction) : origin(origin),
                                                                 direction(
                                                                         direction) {
-    std::map<std::string, double> L;
-
-    L.insert(std::make_pair("r", 1));
-    L.insert(std::make_pair("g", 1));
-    L.insert(std::make_pair("b", 1));
-
+    cv::Vec3d L{1,1,1};
     this->L = L;
 }
 
 Ray::Ray(const cv::Vec3d &new_origin, const cv::Vec3d &new_direction,
-         std::map<std::string, double> L) :
+         cv::Vec3d L) :
         origin(new_origin), direction(new_direction),
         L(std::move(L)) {
 }
 
-Ray::Ray(std::map<std::string, double> L) : L(std::move(L)) {
+Ray::Ray(cv::Vec3d L) : L(std::move(L)) {
 }
 
 Ray Ray::MakeBlackRay() {
-    std::map<std::string, double> L;
-
-    L.insert(std::make_pair("r", 0));
-    L.insert(std::make_pair("g", 0));
-    L.insert(std::make_pair("b", 0));
+    cv::Vec3d L {0,0,0};
     return Ray(L);
-
 }
 
 //==============================================================================
 //================================ Material ====================================
 //==============================================================================
-Material::Material(std::map<std::string, double> rgb_Kd_color, std::map<std::string, double> bright_coefficient) :
+Material::Material(cv::Vec3d rgb_Kd_color, cv::Vec3d bright_coefficient) :
         rgb_Kd_color(std::move(rgb_Kd_color)), bright_coefficient(std::move(bright_coefficient)) {
 }
 
@@ -141,8 +131,8 @@ Light::Light(const cv::Vec3d &new_position, double new_total_flux) : position(
 }
 
 Light::Light(const cv::Vec3d &new_position, double new_total_flux,
-             std::map<std::string, double> new_spec_intensity) : position(
-        new_position), total_intensity(new_total_flux), spec_intensity(std::move(
+             cv::Vec3d new_spec_intensity) : position(
+        new_position), total_intensity(new_total_flux), rgb_intensity(std::move(
         new_spec_intensity)) {
 }
 
@@ -255,33 +245,26 @@ Ray Scene::fireRay(Ray &ray) {
 
         if (material.BRDF != 0) {   //reflection
             double summOfL = 0;
-            for (auto &item : ray.L) {
-                summOfL += item.second;
-            }
+
+            summOfL += ray.L[0]+ray.L[1]+ray.L[2];
+
             if (summOfL > 0.0005) {
-                for (auto &item : ray.L) {
-                    item.second *= material.BRDF * material.rgb_Kd_color.find(item.first)->second;
-                }
-                Ray reflactionRay = Ray(hitRayIntersection, ray.direction + 2 * N, ray.L);
-                reflactionRay = fireRay(reflactionRay);
-                for (auto &item : reflactionRay.L) {
-                    double E = ((lights[i].spec_intensity.find(item.first)->second) /
-                                (dist * dist)) * cos_theta;
-                    item.second +=
-                            E * material.rgb_Kd_color.find(item.first)->second * (1 - material.BRDF) * 0.05;
-                }
-                return reflactionRay;
+
+                ray.L = material.BRDF * material.rgb_Kd_color.mul(ray.L);
+
+                Ray reflectionRay = Ray(hitRayIntersection, get_normalized(ray.direction + 2 * N), ray.L);
+                reflectionRay = fireRay(reflectionRay);
+                cv::Vec3d E = lights[i].rgb_intensity * cos_theta / pow(dist, 2);
+                reflectionRay.L += E.mul(material.rgb_Kd_color) * (1 - material.BRDF) * 0.05;
+
+                return reflectionRay;
             }
             return ray.MakeBlackRay();
         }
 
         if (cos_theta <= 0) {   //triangle unlit
-            for (auto &item : ray.L) {
-                double E = -0.01 * ((lights[i].spec_intensity.find(item.first)->second) /
-                                    (dist * dist)) * cos_theta;
-                item.second =
-                        E * material.rgb_Kd_color.find(item.first)->second * item.second;
-            }
+            cv::Vec3d E = -0.01 * lights[i].rgb_intensity * cos_theta / pow(dist, 2);
+            ray.L = E.mul(material.rgb_Kd_color.mul(ray.L));
             return ray;
         }
 
@@ -293,22 +276,15 @@ Ray Scene::fireRay(Ray &ray) {
         if (intersect(shadow_ray, shadow_hit, shadow_N, shadow_material) &&
             get_length(shadow_hit - shadow_origin) < dist) {
 
-            for (auto &item : ray.L) {
-                double E = 0.015 * ((lights[i].spec_intensity.find(item.first)->second) /
-                                    (dist * dist)) * cos_theta;
-                item.second =
-                        (E * material.rgb_Kd_color.find(item.first)->second) * item.second;
-            }
+            cv::Vec3d E = 0.015 * lights[i].rgb_intensity * cos_theta / pow(dist, 2);
+            ray.L = E.mul(material.rgb_Kd_color.mul(ray.L));
 
-            continue;
+            return ray;
         }
 
-        for (auto &item : ray.L) {
-            double E = ((lights[i].spec_intensity.find(item.first)->second) /
-                        (dist * dist)) * cos_theta;
-            item.second =
-                    (E * material.rgb_Kd_color.find(item.first)->second) * item.second;
-        }
+        cv::Vec3d E = lights[i].rgb_intensity * cos_theta / pow(dist, 2);
+        ray.L = E.mul(material.rgb_Kd_color.mul(ray.L));
+
     }
 
     return ray;
@@ -316,40 +292,21 @@ Ray Scene::fireRay(Ray &ray) {
 
 int Scene::loadCornellBox(const std::string &path_to_file) {
     // Materials
-    std::map<std::string, double> bright_coefs;
+    cv::Vec3d bright_coefs(1,1,1);
 
-    bright_coefs.insert(std::make_pair("r", 1));
-    bright_coefs.insert(std::make_pair("g", 1));
-    bright_coefs.insert(std::make_pair("b", 1));
-
-    std::map<std::string, double> rgb_Kd_color_brs_0;
-    rgb_Kd_color_brs_0.insert(std::make_pair("r", 0.238));
-    rgb_Kd_color_brs_0.insert(std::make_pair("g", 0.199));
-    rgb_Kd_color_brs_0.insert(std::make_pair("b", 0.158));
+    cv::Vec3d rgb_Kd_color_brs_0 {0.238, 0.199, 0.158};
     materials.emplace_back(Material(rgb_Kd_color_brs_0, bright_coefs));
 
-    std::map<std::string, double> rgb_Kd_color_brs_1;
-    rgb_Kd_color_brs_1.insert(std::make_pair("r", 0.096));
-    rgb_Kd_color_brs_1.insert(std::make_pair("g", 0.412));
-    rgb_Kd_color_brs_1.insert(std::make_pair("b", 0.089));
+    cv::Vec3d rgb_Kd_color_brs_1 {0.096, 0.412, 0.089};
     materials.emplace_back(Material(rgb_Kd_color_brs_1, bright_coefs));
 
-    std::map<std::string, double> rgb_Kd_color_brs_2;
-    rgb_Kd_color_brs_2.insert(std::make_pair("r", 0.441));
-    rgb_Kd_color_brs_2.insert(std::make_pair("g", 0.044));
-    rgb_Kd_color_brs_2.insert(std::make_pair("b", 0.046));
+    cv::Vec3d rgb_Kd_color_brs_2 {0.441, 0.044, 0.046};
     materials.emplace_back(Material(rgb_Kd_color_brs_2, bright_coefs));
 
-    std::map<std::string, double> rgb_Kd_color_brs_3;
-    rgb_Kd_color_brs_3.insert(std::make_pair("r", 0.104));
-    rgb_Kd_color_brs_3.insert(std::make_pair("g", 0.38));
-    rgb_Kd_color_brs_3.insert(std::make_pair("b", 0.44));
+    cv::Vec3d rgb_Kd_color_brs_3 {0.104, 0.38, 0.44 };
     materials.emplace_back(Material(rgb_Kd_color_brs_3, bright_coefs));
 
-    std::map<std::string, double> rgb_Kd_color_brs_4;
-    rgb_Kd_color_brs_4.insert(std::make_pair("r", 0.104));
-    rgb_Kd_color_brs_4.insert(std::make_pair("g", 0.38));
-    rgb_Kd_color_brs_4.insert(std::make_pair("b", 0.44));
+    cv::Vec3d rgb_Kd_color_brs_4 {0.104, 0.38, 0.44 };
     materials.emplace_back(Material(rgb_Kd_color_brs_4, bright_coefs));
 
     // Lights
@@ -359,13 +316,9 @@ int Scene::loadCornellBox(const std::string &path_to_file) {
     double Isim_b = 600;
     double Itotal = Isim_r + Isim_g + Isim_b;
 
-    std::map<std::string, double> spec_intensity;
-    spec_intensity.insert(
-            std::make_pair("r", total_intensity * (Isim_r / Itotal)));
-    spec_intensity.insert(
-            std::make_pair("g", total_intensity * (Isim_g / Itotal)));
-    spec_intensity.insert(
-            std::make_pair("b", total_intensity * (Isim_b / Itotal)));
+    cv::Vec3d spec_intensity {total_intensity * (Isim_r / Itotal),
+                              total_intensity * (Isim_g / Itotal),
+                              total_intensity * (Isim_b / Itotal)};
 
     Light a = Light(cv::Vec3d(278, 545, -279.5), total_intensity,
                     spec_intensity);
@@ -507,20 +460,19 @@ void Scene::render(const bool &antialiasing) {
 
             for (long long i = 0; i < height; i++) {
                 for (long long j = 0; j < width; j++) {
-                    int position_X = i * 2+1;
-                    int position_Y = j * 2+1;
+                    int position_X = i * 2 + 1;
+                    int position_Y = j * 2 + 1;
                     Ray result = antialiasingFrameBuffer[0].MakeBlackRay();
-                    for (auto &item : result.L) {
-                        item.second = ( antialiasingFrameBuffer[position_Y-1+(position_X-1) * (width*2+1)].L.find(item.first)->second +
-                                        antialiasingFrameBuffer[position_Y  +(position_X-1) * (width*2+1)].L.find(item.first)->second +
-                                        antialiasingFrameBuffer[position_Y+1+(position_X-1) * (width*2+1)].L.find(item.first)->second +
-                                        antialiasingFrameBuffer[position_Y-1+(position_X  ) * (width*2+1)].L.find(item.first)->second +
-                                        antialiasingFrameBuffer[position_Y  +(position_X  ) * (width*2+1)].L.find(item.first)->second +
-                                        antialiasingFrameBuffer[position_Y+1+(position_X  ) * (width*2+1)].L.find(item.first)->second +
-                                        antialiasingFrameBuffer[position_Y-1+(position_X+1) * (width*2+1)].L.find(item.first)->second +
-                                        antialiasingFrameBuffer[position_Y  +(position_X+1) * (width*2+1)].L.find(item.first)->second +
-                                        antialiasingFrameBuffer[position_Y+1+(position_X+1) * (width*2+1)].L.find(item.first)->second) / 9;
-                    }
+                    result.L = (   antialiasingFrameBuffer[position_Y - 1 + (position_X - 1) * (width * 2 + 1)].L +
+                                   antialiasingFrameBuffer[position_Y +     (position_X - 1) * (width * 2 + 1)].L +
+                                   antialiasingFrameBuffer[position_Y + 1 + (position_X - 1) * (width * 2 + 1)].L +
+                                   antialiasingFrameBuffer[position_Y - 1 + (position_X) *     (width * 2 + 1)].L +
+                                   antialiasingFrameBuffer[position_Y +     (position_X) *     (width * 2 + 1)].L +
+                                   antialiasingFrameBuffer[position_Y + 1 + (position_X) *     (width * 2 + 1)].L +
+                                   antialiasingFrameBuffer[position_Y - 1 + (position_X + 1) * (width * 2 + 1)].L +
+                                   antialiasingFrameBuffer[position_Y +     (position_X + 1) * (width * 2 + 1)].L +
+                                   antialiasingFrameBuffer[position_Y + 1 + (position_X + 1) * (width * 2 + 1)].L) / 9;
+
                     framebuffer[j + i * width] = result;
                 }
             }
@@ -534,7 +486,6 @@ void Scene::render(const bool &antialiasing) {
                                (double) height;
                     double y = -(2 * (i + 0.5) / (double) height - 1) * tan(fov / 2.);
                     cv::Vec3d direction = get_normalized(cv::Vec3d(x, y, -1));
-
                     Ray ray(camera.getPosition(), direction);
                     framebuffer[j + i * width] = fireRay(ray);
                 }
@@ -556,10 +507,10 @@ void Scene::render(const bool &antialiasing) {
             for (long long i = 0; i < height; i++) {
                 for (long long j = 0; j < width; j++) {
                     if (j == 0) {
-                        fout << framebuffer[j + i * width].L.find(wavelengths[k])->second;
+                        fout << framebuffer[j + i * width].L[k];
                     } else {
                         fout << " "
-                             << framebuffer[j + i * width].L.find(wavelengths[k])->second;
+                             << framebuffer[j + i * width].L[k];
                     }
                 }
                 fout << std::endl;
