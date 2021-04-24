@@ -129,7 +129,7 @@ private:
 class Scene {
 public:
     Scene();
-    void render(const bool & antialiasing);
+    void render(bool antialiasing);
     Ray fireRay(Ray &ray);
     int loadCornellBox(const std::string &path_to_file);
     int loadTeapot(const std::string &path_to_file);
@@ -142,18 +142,16 @@ public:
                         const int & id);
 
     void setNewCamera(const Camera &camera);
-    void setNewMaterial(Material material);
+    void setNewMaterial(const Material& material);
     void setNewLight(const Light & light);
 
 
 private:
     bool
-    intersect(const Ray &ray, cv::Vec3d &distanseOverHit, cv::Vec3d &N, Material &material);
+    intersect(const Ray &ray, cv::Vec3d &positionOfHit, cv::Vec3d &N, Material &material);
 
 private:
-    std::vector<cv::Vec3d> points;
     std::vector<Triangle> triangles;
-    std::vector<int> object_id;
     std::vector<Light> lights;
     std::vector<Material> materials;
     std::vector<Camera> cameras;

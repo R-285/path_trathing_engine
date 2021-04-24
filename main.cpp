@@ -8,7 +8,7 @@ int main() {
     std::string path_to_scene_description = "../data/cornel_box0.shp";
     Scene scene;
 
-    if (false) {
+    if (true) {
         if (int exit_code = scene.loadCornellBox(path_to_scene_description); exit_code != 0) {
             std::cout << "Scene: failed to load scene description: " << exit_code << std::endl;
         }
@@ -95,15 +95,15 @@ int main() {
                         spec_intensity);
         scene.setNewLight(a);
     }
-    // New camera
-    int width  = 1280;  //512;  //
-    int height = 720;   //512;  //
+    // set camera
+    int width  = 650;  //1280;  //
+    int height = 600;  //720;   //
     double fov = M_PI / 3.f;
     cv::Vec3d origin({250, 275, 500});
     Camera camera(width, height, fov, origin);
     scene.setNewCamera(camera);
 
-    bool antialiasing = 0;
+    bool antialiasing = true;
     scene.render(antialiasing);
     return 0;
 }

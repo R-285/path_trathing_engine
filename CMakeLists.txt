@@ -9,12 +9,11 @@ set(${PROJECT_NAME}_SOURCE_FILES
         )
 
 # Packages
-if (WIN32)
-    set(OpenCV_DIR "C:\\opencv\\opencv\\build\\x64\\vc15\\lib")
-endif(WIN32)
+
 find_package(OpenCV REQUIRED)
+message("${CMAKE_SYSTEM_PREFIX_PATH}")
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 
 add_executable(path_tracing main.cpp ${${PROJECT_NAME}_SOURCE_FILES})
 
-target_link_libraries( path_tracing PRIVATE opencv_core opencv_highgui )
+target_link_libraries(path_tracing PRIVATE opencv_core opencv_highgui)
