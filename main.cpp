@@ -8,7 +8,7 @@ int main() {
     std::string path_to_scene_description = "../data/cornel_box0.shp";
     Scene scene;
 
-    if (true) {
+    if (false) {
         if (int exit_code = scene.loadCornellBox(path_to_scene_description); exit_code != 0) {
             std::cout << "Scene: failed to load scene description: " << exit_code << std::endl;
         }
@@ -30,12 +30,12 @@ int main() {
 
         cv::Vec3d mirror{1,1,1};
         Material materialOfMirror = Material{mirror, bright_coefs};
-        materialOfMirror.BRDF = 0.7;
+        materialOfMirror.setBRDF(1);
         scene.setNewMaterial(materialOfMirror);
 
         cv::Vec3d mirrorBox{0.90588, 0.8196, 0.078};
         Material materialOfMirrorBox = Material{mirrorBox, bright_coefs};
-        materialOfMirrorBox.BRDF = 0.3;
+        materialOfMirrorBox.setBRDF(0.97);
         scene.setNewMaterial(materialOfMirrorBox);
 
         cv::Vec3d v0G{-500, 0, 50};
@@ -54,13 +54,13 @@ int main() {
         v1G = {250, 0, -400};
         v2G = {250, 150, -400};
         v3G = {100, 150, -300};
-        scene.addCub(v0G, v1G, v2G, v3G, 2, 100);
+        scene.addCube(v0G, v1G, v2G, v3G, 2, 100);
 
         v0G = {600, 0, -150};
         v1G = {480, 0, -800};
         v2G = {480, 100, -800};
         v3G = {600, 100, -150};
-        scene.addCub(v0G, v1G, v2G, v3G, 3, 100);
+        scene.addCube(v0G, v1G, v2G, v3G, 3, 100);
 
         v0G = {750, 0, -900};
         v1G = {300, 0, -1100};
@@ -72,7 +72,7 @@ int main() {
         v1G = {150, 0,  -50};
         v2G = {150, 200,-50};
         v3G = {0,  200,-75};
-        scene.addCub(v0G, v1G, v2G, v3G, 5, 150);
+        scene.addCube(v0G, v1G, v2G, v3G, 5, 150);
 
         /*std::string path_to_teapot = "../data/teapot.txt";
 
@@ -91,19 +91,20 @@ int main() {
                                  total_intensity * (Isim_g / Itotal),
                                  total_intensity * (Isim_b / Itotal)};
 
-        Light a = Light(cv::Vec3d(600, 600, -500), total_intensity,
-                        spec_intensity);
+        Light a = Light(cv::Vec3d(600, 600, -500), spec_intensity);
         scene.setNewLight(a);
     }
+
     // set camera
-    int width  = 650;  //1280;  //
-    int height = 600;  //720;   //
+    int width  = 512;  //1280;  //
+    int height = 512;  //720;   //
     double fov = M_PI / 3.f;
     cv::Vec3d origin({250, 275, 500});
     Camera camera(width, height, fov, origin);
     scene.setNewCamera(camera);
 
-    bool antialiasing = true;
-    scene.render(antialiasing);
+    scene.setAntialiasing(false);
+    scene.setLightInShadows(true);
+    scene.render();
     return 0;
 }

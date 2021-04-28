@@ -15,20 +15,6 @@ cv::Vec3d get_normalized(const cv::Vec3d &vec);
 double get_length(const cv::Vec3d &vec);
 
 //==============================================================================
-//================================ Point =======================================
-//==============================================================================
-struct Point {
-    double x = 0;
-    double y = 0;
-    double z = 0;
-
-    // FIXME: На будущее
-//  double n_x = 0;
-//  double n_y = 0;
-//  double n_z = 0;
-};
-
-//==============================================================================
 //================================ Ray =========================================
 //==============================================================================
 class Ray {
@@ -47,14 +33,19 @@ public:
 //==============================================================================
 //================================ Material ====================================
 //==============================================================================
-// FIXME: Maybe smth is private
 class Material {
 public:
     Material() = default;
     Material(cv::Vec3d rgb_Kd_color,  cv::Vec3d bright_coefficient);
+    void setBRDF(double newBRDF){
+        BRDF = std::min(newBRDF, 0.99999);
+        if (BRDF < 0) BRDF = 0;
+    }
+    double giveBRDF(){ return BRDF;};
+    cv::Vec3d giveRGBCOlod(){return rgb_Kd_color;}
 
-    double BRDF = 0;
-public:
+private:
+    double BRDF = 0.0;
     cv::Vec3d rgb_Kd_color;
     cv::Vec3d bright_coefficient;
 };
@@ -62,26 +53,22 @@ public:
 //==============================================================================
 //================================ Triangle ====================================
 //==============================================================================
-// FIXME: Maybe smth is private
+
 class Triangle {
 public:
     Triangle() = default;
 
     Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2);
     Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
-             const int &object_id);
-    Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
              const Material *material);
-    Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
-             const int &object_id,
-             const Material *material);
-    cv::Vec3d getNormal() const;
     cv::Vec3d getNormalByObserver(const cv::Vec3d &observer) const;
     bool intersect(const Ray &ray, double &t) const;
+    Material giveMaterial() const{
+        return *material;
+    }
 
-public:
+private:
     cv::Vec3d v0, v1, v2;
-    int object_id = -1;
     const Material *material;
 };
 
@@ -91,14 +78,18 @@ public:
 struct Light {
 public:
     Light() = default;
-    Light(const cv::Vec3d &new_position, double new_total_flux);
-    Light(const cv::Vec3d &new_position, double new_total_flux,
+    Light(const cv::Vec3d &new_position);
+    Light(const cv::Vec3d &new_position,
           cv::Vec3d new_rgb_intensity);
-
-public:
+    cv::Vec3d givePosition(){
+        return position;
+    }
+    cv::Vec3d giveRGBIntensity(){
+        return rgb_intensity;
+    }
+private:
     cv::Vec3d position;
-    double total_intensity = 0; // W/sr
-    cv::Vec3d rgb_intensity; // int wavelength, double intensity
+    cv::Vec3d rgb_intensity;
 };
 
 //==============================================================================
@@ -129,15 +120,15 @@ private:
 class Scene {
 public:
     Scene();
-    void render(bool antialiasing);
+    void render();
     Ray fireRay(Ray &ray);
     int loadCornellBox(const std::string &path_to_file);
     int loadTeapot(const std::string &path_to_file);
 
     void addPlane(const cv::Vec3d& v0,const cv::Vec3d& v1,const cv::Vec3d& v2,
                   const cv::Vec3d& v4, const int & id);
-    void addCub(const cv::Vec3d& v0,const cv::Vec3d& v1,const cv::Vec3d& v2,
-                  const cv::Vec3d& v4, const int & id, const double& depth);
+    void addCube(const cv::Vec3d& v0, const cv::Vec3d& v1, const cv::Vec3d& v2,
+                 const cv::Vec3d& v3, const int & id, const double& depth);
     void setNewTriangle(const cv::Vec3d& v0,const cv::Vec3d& v1,const cv::Vec3d& v2,
                         const int & id);
 
@@ -145,12 +136,14 @@ public:
     void setNewMaterial(const Material& material);
     void setNewLight(const Light & light);
 
+    void setAntialiasing(const bool & antialiasing);
+    void setLightInShadows(const bool & lightInShadows);
+private:
+    bool intersect(const Ray &ray, cv::Vec3d &positionOfHit, cv::Vec3d &N, Material &material);
 
 private:
-    bool
-    intersect(const Ray &ray, cv::Vec3d &positionOfHit, cv::Vec3d &N, Material &material);
-
-private:
+    bool antialiasing = false;
+    bool lightInShadows = false;
     std::vector<Triangle> triangles;
     std::vector<Light> lights;
     std::vector<Material> materials;
